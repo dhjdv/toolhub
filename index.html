@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Tool Launchpad</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a; /* Slate 900 */
+        }
+
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+
+        .card-hover:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+            border-color: #3b82f6; /* Blue 500 */
+        }
+
+        .search-input:focus {
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+        }
+        
+        /* Modal Styles */
+        .modal {
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        .modal.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            transform: scale(0.95);
+            transition: all 0.3s ease;
+        }
+        .modal.active .modal-content {
+            transform: scale(1);
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569; 
+        }
+    </style>
+</head>
+<body class="text-slate-200 min-h-screen flex flex-col">
+
+    <!-- Navbar -->
+    <nav class="bg-slate-800/50 backdrop-blur-md border-b border-slate-700 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-3">
+                    <div class="bg-blue-600 text-white p-2 rounded-lg">
+                        <i class="fa-solid fa-shapes"></i>
+                    </div>
+                    <span class="font-bold text-xl tracking-tight text-white">Tool<span class="text-blue-500">Hub</span></span>
+                </div>
+                <!-- Search for Desktop -->
+                <div class="hidden md:block w-96">
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                            <i class="fa-solid fa-search"></i>
+                        </span>
+                        <input type="text" id="searchInput" placeholder="Search tools..." 
+                            class="search-input w-full bg-slate-900/50 border border-slate-600 text-white rounded-lg py-2 pl-10 pr-4 focus:outline-none focus:border-blue-500 transition-colors placeholder-slate-500">
+                    </div>
+                </div>
+                <!-- Mobile Menu Button -->
+                <div class="md:hidden">
+                    <button id="mobileSearchBtn" class="text-slate-300 hover:text-white p-2">
+                        <i class="fa-solid fa-search"></i>
+                    </button>
+                </div>
+            </div>
+            <!-- Mobile Search Bar -->
+            <div id="mobileSearchBar" class="hidden pb-4 md:hidden">
+                <input type="text" id="mobileSearchInput" placeholder="Search tools..." 
+                    class="w-full bg-slate-900 border border-slate-600 text-white rounded-lg py-2 px-4 focus:outline-none focus:border-blue-500">
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+        
+        <!-- Header Section with Admin Controls -->
+        <div class="mb-8 flex justify-between items-end">
+            <div>
+                <h1 class="text-3xl font-bold text-white mb-2">Dashboard</h1>
+                <p class="text-slate-400">Select a utility to begin working.</p>
+            </div>
+            <!-- Admin Controls (Hidden by default) -->
+            <div id="adminPanel" class="hidden flex gap-2">
+                <button onclick="copyConfig()" class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-slate-600">
+                    <i class="fa-solid fa-code mr-2"></i>Copy Config
+                </button>
+                <button onclick="openModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-lg shadow-emerald-900/20">
+                    <i class="fa-solid fa-plus mr-2"></i>Add Tool
+                </button>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="flex flex-wrap gap-2 mb-8" id="categoryFilters">
+            <button class="filter-btn active bg-blue-600 text-white px-4 py-1.5 rounded-full text-sm font-medium transition-colors hover:bg-blue-700" data-category="all">
+                All Tools
+            </button>
+            <!-- Other categories generated dynamically -->
+        </div>
+
+        <!-- Grid -->
+        <div id="toolsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <!-- Tool Cards will be injected here -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="noResults" class="hidden text-center py-20">
+            <div class="text-slate-500 text-5xl mb-4"><i class="fa-solid fa-ghost"></i></div>
+            <h3 class="text-xl font-medium text-white mb-2">No tools found</h3>
+            <p class="text-slate-400">Try adjusting your search terms.</p>
+        </div>
+
+    </main>
+
+    <!-- Footer with Admin Login Trigger -->
+    <footer class="border-t border-slate-800 bg-slate-900 py-6 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 flex justify-between items-center text-slate-500 text-sm">
+            <p>&copy; <script>document.write(new Date().getFullYear())</script> Tool Hub. All rights reserved.</p>
+            <button onclick="adminLogin()" class="text-slate-700 hover:text-slate-500 transition-colors p-2" title="Admin Access">
+                <i class="fa-solid fa-lock"></i>
+            </button>
+        </div>
+    </footer>
+
+    <!-- Add Tool Modal -->
+    <div id="addToolModal" class="modal fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+        <div class="modal-content bg-slate-800 border border-slate-700 w-full max-w-md rounded-2xl p-6 shadow-2xl">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-white">Add New Tool</h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-white transition-colors">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            
+            <form id="addToolForm" onsubmit="handleAddTool(event)" class="space-y-4">
+                <div>
+                    <label class="block text-slate-400 text-sm font-medium mb-1">Tool Title</label>
+                    <input type="text" name="title" required class="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 placeholder-slate-600" placeholder="e.g., Map Viewer">
+                </div>
+                
+                <div>
+                    <label class="block text-slate-400 text-sm font-medium mb-1">URL</label>
+                    <input type="url" name="url" required class="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 placeholder-slate-600" placeholder="https://...">
+                </div>
+
+                <div>
+                    <label class="block text-slate-400 text-sm font-medium mb-1">Description</label>
+                    <textarea name="description" required rows="2" class="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 placeholder-slate-600" placeholder="Short description..."></textarea>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-slate-400 text-sm font-medium mb-1">Category</label>
+                        <input type="text" name="category" list="categoryOptions" required class="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 placeholder-slate-600" placeholder="GIS">
+                        <datalist id="categoryOptions">
+                            <option value="GIS">
+                            <option value="Analysis">
+                            <option value="Utility">
+                        </datalist>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 text-sm font-medium mb-1">Icon (FontAwesome)</label>
+                        <input type="text" name="icon" class="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 placeholder-slate-600" value="fa-solid fa-link">
+                    </div>
+                </div>
+
+                <div class="pt-4 flex gap-3">
+                    <button type="button" onclick="closeModal()" class="flex-1 bg-slate-700 text-white py-2 rounded-lg font-medium hover:bg-slate-600 transition-colors">Cancel</button>
+                    <button type="submit" class="flex-1 bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors">Add Tool</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 🔧 DEFAULT CONFIGURATION
+        // ==========================================
+        const defaultTools = [
+            {
+                title: "Buffer Tool",
+                url: "https://dhjdv.github.io/buffer-tool/",
+                description: "Create and analyze buffer zones for map features.",
+                category: "GIS",
+                icon: "fa-solid fa-layer-group",
+                color: "text-emerald-400",
+                bg: "bg-emerald-400/10"
+            },
+            {
+                title: "KML Polygon Corrector",
+                url: "https://kml-polygon-corrector.streamlit.app/",
+                description: "Fix and validate KML polygon geometries automatically.",
+                category: "GIS",
+                icon: "fa-solid fa-draw-polygon",
+                color: "text-blue-400",
+                bg: "bg-blue-400/10"
+            },
+            {
+                title: "Close Adj",
+                url: "https://close-adj.streamlit.app/",
+                description: "Adjacency analysis and closure calculations.",
+                category: "Analysis",
+                icon: "fa-solid fa-ruler-combined",
+                color: "text-purple-400",
+                bg: "bg-purple-400/10"
+            },
+            {
+                title: "Logsheet App",
+                url: "https://logsheet.streamlit.app/",
+                description: "Digital logging and record keeping utility.",
+                category: "Utility",
+                icon: "fa-solid fa-clipboard-list",
+                color: "text-amber-400",
+                bg: "bg-amber-400/10"
+            }
+        ];
+
+        // ==========================================
+        // ⚙️ APP LOGIC
+        // ==========================================
+
+        // State
+        let allTools = [];
+        let isAdmin = false;
+        const ADMIN_PASS = "dhansaa";
+
+        // DOM Elements
+        const grid = document.getElementById('toolsGrid');
+        const searchInput = document.getElementById('searchInput');
+        const mobileSearchInput = document.getElementById('mobileSearchInput');
+        const categoryContainer = document.getElementById('categoryFilters');
+        const noResults = document.getElementById('noResults');
+        const adminPanel = document.getElementById('adminPanel');
+        const modal = document.getElementById('addToolModal');
+
+        // 1. Initialization
+        function init() {
+            // Load custom tools from localStorage
+            const localTools = JSON.parse(localStorage.getItem('myCustomTools') || '[]');
+            allTools = [...defaultTools, ...localTools];
+            
+            initCategories();
+            renderTools(allTools);
+        }
+
+        // 2. Admin Logic
+        function adminLogin() {
+            if (isAdmin) {
+                alert("You are already logged in as Admin.");
+                return;
+            }
+            const pass = prompt("Enter Admin Password:");
+            if (pass === ADMIN_PASS) {
+                isAdmin = true;
+                adminPanel.classList.remove('hidden');
+                // Optional: Save admin session in sessionStorage
+                alert("Admin Access Granted. You can now add tools.");
+            } else if (pass !== null) {
+                alert("Incorrect Password.");
+            }
+        }
+
+        // 3. Category Logic
+        function initCategories() {
+            categoryContainer.innerHTML = ''; // Clear existing
+            
+            // Re-add "All" button
+            const allBtn = document.createElement('button');
+            allBtn.className = 'filter-btn active bg-blue-600 text-white px-4 py-1.5 rounded-full text-sm font-medium transition-colors hover:bg-blue-700 border border-blue-600';
+            allBtn.textContent = 'All Tools';
+            allBtn.dataset.category = 'all';
+            allBtn.onclick = () => filterByCategory('all', allBtn);
+            categoryContainer.appendChild(allBtn);
+
+            const categories = ['GIS', 'Analysis', 'Utility'];
+            const toolCategories = [...new Set(allTools.map(t => t.category))];
+            
+            toolCategories.forEach(c => {
+                if(!categories.includes(c)) categories.push(c);
+            });
+
+            categories.forEach(cat => {
+                const btn = document.createElement('button');
+                btn.className = 'filter-btn bg-slate-800 text-slate-300 px-4 py-1.5 rounded-full text-sm font-medium transition-colors hover:bg-slate-700 hover:text-white border border-slate-700';
+                btn.textContent = cat;
+                btn.dataset.category = cat;
+                btn.onclick = () => filterByCategory(cat, btn);
+                categoryContainer.appendChild(btn);
+            });
+        }
+
+        // 4. Render Logic
+        function renderTools(toolsToRender) {
+            grid.innerHTML = '';
+            
+            if (toolsToRender.length === 0) {
+                noResults.classList.remove('hidden');
+            } else {
+                noResults.classList.add('hidden');
+            }
+
+            toolsToRender.forEach(tool => {
+                const card = document.createElement('a');
+                card.href = tool.url;
+                card.target = "_blank"; 
+                card.className = `block bg-slate-800 border border-slate-700 rounded-xl p-6 card-hover relative group overflow-hidden`;
+                
+                // Assign random color if not present (for new tools)
+                const bgClass = tool.bg || 'bg-slate-700';
+                const textClass = tool.color || 'text-slate-300';
+
+                card.innerHTML = `
+                    <div class="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <i class="fa-solid fa-arrow-up-right-from-square text-slate-400"></i>
+                    </div>
+                    <div class="flex items-start justify-between mb-4">
+                        <div class="h-12 w-12 rounded-lg ${bgClass} ${textClass} flex items-center justify-center text-xl">
+                            <i class="${tool.icon || 'fa-solid fa-link'}"></i>
+                        </div>
+                        <span class="text-xs font-semibold text-slate-500 bg-slate-900/50 px-2 py-1 rounded border border-slate-700/50">
+                            ${tool.category}
+                        </span>
+                    </div>
+                    <h3 class="text-lg font-bold text-white mb-2 group-hover:text-blue-400 transition-colors">${tool.title}</h3>
+                    <p class="text-slate-400 text-sm leading-relaxed">${tool.description}</p>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // 5. Filtering
+        let currentCategory = 'all';
+        let currentSearch = '';
+
+        function applyFilters() {
+            const filtered = allTools.filter(tool => {
+                const matchesCategory = currentCategory === 'all' || tool.category === currentCategory;
+                const matchesSearch = tool.title.toLowerCase().includes(currentSearch) || 
+                                    tool.description.toLowerCase().includes(currentSearch) ||
+                                    tool.category.toLowerCase().includes(currentSearch);
+                return matchesCategory && matchesSearch;
+            });
+            renderTools(filtered);
+        }
+
+        function filterByCategory(category, btnElement) {
+            currentCategory = category;
+            
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.className = 'filter-btn bg-slate-800 text-slate-300 px-4 py-1.5 rounded-full text-sm font-medium transition-colors hover:bg-slate-700 hover:text-white border border-slate-700';
+            });
+
+            btnElement.className = 'filter-btn active bg-blue-600 text-white px-4 py-1.5 rounded-full text-sm font-medium transition-colors hover:bg-blue-700 border border-blue-600';
+            
+            applyFilters();
+        }
+
+        // 6. Search
+        function handleSearch(e) {
+            currentSearch = e.target.value.toLowerCase();
+            applyFilters();
+        }
+        searchInput.addEventListener('input', handleSearch);
+        mobileSearchInput.addEventListener('input', handleSearch);
+
+        // Mobile Search Toggle
+        document.getElementById('mobileSearchBtn').addEventListener('click', () => {
+            const bar = document.getElementById('mobileSearchBar');
+            bar.classList.toggle('hidden');
+            if (!bar.classList.contains('hidden')) document.getElementById('mobileSearchInput').focus();
+        });
+
+        // ==========================================
+        // 🛠️ ADMIN FUNCTIONS
+        // ==========================================
+
+        function openModal() {
+            modal.classList.add('active');
+        }
+
+        function closeModal() {
+            modal.classList.remove('active');
+            document.getElementById('addToolForm').reset();
+        }
+
+        function handleAddTool(e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            
+            const newTool = {
+                title: formData.get('title'),
+                url: formData.get('url'),
+                description: formData.get('description'),
+                category: formData.get('category'),
+                icon: formData.get('icon'),
+                // Assign a random color style
+                color: 'text-indigo-400',
+                bg: 'bg-indigo-400/10'
+            };
+
+            // Save to Local Storage (Browser memory)
+            const localTools = JSON.parse(localStorage.getItem('myCustomTools') || '[]');
+            localTools.push(newTool);
+            localStorage.setItem('myCustomTools', JSON.stringify(localTools));
+
+            // Update State
+            allTools.push(newTool);
+            
+            // Refresh UI
+            initCategories(); // Update categories in case a new one was added
+            applyFilters(); // Re-render grid
+            closeModal();
+            
+            alert('Tool added successfully! Note: This is saved in your browser. Use "Copy Config" to get the code for permanent addition.');
+        }
+
+        function copyConfig() {
+            const localTools = JSON.parse(localStorage.getItem('myCustomTools') || '[]');
+            if (localTools.length === 0) {
+                alert("No custom tools added yet.");
+                return;
+            }
+            
+            const configString = JSON.stringify(localTools, null, 4);
+            // Format it to look like code comments
+            const message = `// Copy this block into the 'tools' array in your HTML file:\n` + 
+                          configString.replace(/^\[/, '').replace(/\]$/, '').replace(/^/gm, '    ').trim(); // Strip brackets for cleaner copy
+
+            navigator.clipboard.writeText(message).then(() => {
+                alert("Config copied to clipboard! You can now paste it into the HTML code.");
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                alert("Could not copy automatically. Check console.");
+            });
+        }
+
+        // Run
+        init();
+
+    </script>
+</body>
+</html>
