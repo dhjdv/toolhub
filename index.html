@@ -153,7 +153,7 @@
 
     <!-- Add Tool Modal -->
     <div id="addToolModal" class="modal fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-        <div class="modal-content bg-slate-800 border border-slate-700 w-full max-w-md rounded-2xl p-6 shadow-2xl">
+        <div class="modal-content bg-slate-800 border border-slate-700 w-full max-w-md rounded-2xl p-6 shadow-2xl h-[80vh] overflow-y-auto">
             <div class="flex justify-between items-center mb-6">
                 <h3 class="text-xl font-bold text-white">Add New Tool</h3>
                 <button onclick="closeModal()" class="text-slate-400 hover:text-white transition-colors">
@@ -191,6 +191,13 @@
                         <label class="block text-slate-400 text-sm font-medium mb-1">Icon (FontAwesome)</label>
                         <input type="text" name="icon" class="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 placeholder-slate-600" value="fa-solid fa-link">
                     </div>
+                </div>
+
+                <!-- New Download Field -->
+                <div>
+                    <label class="block text-slate-400 text-sm font-medium mb-1">Download/Asset URL (Optional)</label>
+                    <input type="url" name="downloadUrl" class="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 placeholder-slate-600" placeholder="https://github.com/.../file.png">
+                    <p class="text-xs text-slate-500 mt-1">If set, a download icon will appear on the card.</p>
                 </div>
 
                 <div class="pt-4 flex gap-3">
@@ -241,6 +248,18 @@
                 icon: "fa-solid fa-clipboard-list",
                 color: "text-amber-400",
                 bg: "bg-amber-400/10"
+            },
+            {
+                title: "Logsheet JS",
+                url: "https://dhjdv.github.io/logsheet-js/",
+                description: "JS based logsheet utility. (Requires helper image)",
+                category: "Utility",
+                icon: "fa-brands fa-js",
+                color: "text-rose-400",
+                bg: "bg-rose-400/10",
+                // CHANGED: Using raw.githubusercontent.com avoids redirect issues and works better for downloads
+                downloadUrl: "https://raw.githubusercontent.com/dhjdv/logsheet-js/main/picture1.png",
+                downloadTitle: "Download Helper Image"
             }
         ];
 
@@ -329,32 +348,98 @@
             }
 
             toolsToRender.forEach(tool => {
-                const card = document.createElement('a');
-                card.href = tool.url;
-                card.target = "_blank"; 
+                const card = document.createElement('div');
                 card.className = `block bg-slate-800 border border-slate-700 rounded-xl p-6 card-hover relative group overflow-hidden`;
                 
-                // Assign random color if not present (for new tools)
                 const bgClass = tool.bg || 'bg-slate-700';
                 const textClass = tool.color || 'text-slate-300';
+                
+                // --- MODIFIED DOWNLOAD LOGIC ---
+                // We use a button with an onclick handler to force the download via JS
+                const downloadName = tool.downloadUrl ? tool.downloadUrl.split('/').pop() : 'download';
+                const downloadBtn = tool.downloadUrl ? 
+                    `<button onclick="downloadFile(event, '${tool.downloadUrl}', '${downloadName}')" 
+                        class="z-20 text-slate-400 hover:text-emerald-400 transition-colors p-2" 
+                        title="Download ${tool.downloadTitle || 'File'}">
+                        <i class="fa-solid fa-file-arrow-down"></i>
+                     </button>` : '';
+                // -------------------------------
 
                 card.innerHTML = `
-                    <div class="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <i class="fa-solid fa-arrow-up-right-from-square text-slate-400"></i>
+                    <!-- Main Link -->
+                    <a href="${tool.url}" target="_blank" class="absolute inset-0 z-10"></a>
+
+                    <!-- Top Right Actions -->
+                    <div class="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 z-20">
+                        ${downloadBtn}
+                        <span class="text-slate-400 p-2"><i class="fa-solid fa-arrow-up-right-from-square"></i></span>
                     </div>
-                    <div class="flex items-start justify-between mb-4">
-                        <div class="h-12 w-12 rounded-lg ${bgClass} ${textClass} flex items-center justify-center text-xl">
-                            <i class="${tool.icon || 'fa-solid fa-link'}"></i>
+
+                    <!-- Content -->
+                    <div class="relative z-0 pointer-events-none">
+                        <div class="flex items-start justify-between mb-4">
+                            <div class="h-12 w-12 rounded-lg ${bgClass} ${textClass} flex items-center justify-center text-xl">
+                                <i class="${tool.icon || 'fa-solid fa-link'}"></i>
+                            </div>
+                            <span class="text-xs font-semibold text-slate-500 bg-slate-900/50 px-2 py-1 rounded border border-slate-700/50">
+                                ${tool.category}
+                            </span>
                         </div>
-                        <span class="text-xs font-semibold text-slate-500 bg-slate-900/50 px-2 py-1 rounded border border-slate-700/50">
-                            ${tool.category}
-                        </span>
+                        <h3 class="text-lg font-bold text-white mb-2 group-hover:text-blue-400 transition-colors">${tool.title}</h3>
+                        <p class="text-slate-400 text-sm leading-relaxed">${tool.description}</p>
                     </div>
-                    <h3 class="text-lg font-bold text-white mb-2 group-hover:text-blue-400 transition-colors">${tool.title}</h3>
-                    <p class="text-slate-400 text-sm leading-relaxed">${tool.description}</p>
                 `;
                 grid.appendChild(card);
             });
+        }
+
+        // ==========================================
+        // 📥 DOWNLOAD HELPER (FIXED)
+        // ==========================================
+        async function downloadFile(e, url, name) {
+            e.stopPropagation(); // Stop the card from opening the main tool URL
+            
+            const btn = e.currentTarget;
+            const icon = btn.querySelector('i');
+            const originalClass = icon.className;
+            
+            // 1. Show Loading State
+            icon.className = 'fa-solid fa-spinner fa-spin';
+            
+            try {
+                // 2. Fetch the file as a "Blob"
+                // Added mode: 'cors' to handle cross-origin requests explicitly
+                const response = await fetch(url, { mode: 'cors' });
+                
+                if (!response.ok) throw new Error('Network response was not ok');
+                
+                const blob = await response.blob();
+                
+                // 3. Create a temporary URL for this blob
+                const blobUrl = window.URL.createObjectURL(blob);
+                
+                // 4. Create an invisible link and click it to force download
+                const link = document.createElement('a');
+                link.href = blobUrl;
+                link.download = name || 'download';
+                document.body.appendChild(link);
+                link.click();
+                
+                // 5. Cleanup
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(blobUrl);
+                
+            } catch (error) {
+                // CHANGED: Use warn instead of error to avoid scaring the user.
+                console.warn('Direct download prevented by CORS/Network. Opening in new tab as fallback.', error);
+                
+                // Fallback: Just open the image in a new tab
+                // This is the safest bet if the browser blocks the fetch
+                window.open(url, '_blank');
+            } finally {
+                // Restore Icon
+                icon.className = originalClass;
+            }
         }
 
         // 5. Filtering
@@ -422,6 +507,7 @@
                 description: formData.get('description'),
                 category: formData.get('category'),
                 icon: formData.get('icon'),
+                downloadUrl: formData.get('downloadUrl') || null,
                 // Assign a random color style
                 color: 'text-indigo-400',
                 bg: 'bg-indigo-400/10'
